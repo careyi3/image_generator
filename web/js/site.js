@@ -8,7 +8,7 @@ function drawAt(point) {
   div.style.height = dotSize + "px";
   div.style.position = "absolute";
   div.style.left = point.x - dotSize / 2 + "px";
-  div.style.top = point.y - dotSize / 2 + "px";
+  div.style.top = 600 - point.y - dotSize / 2 + "px";
   div.style.borderRadius = "50%";
   document.getElementById("canvas").appendChild(div);
 }
@@ -21,7 +21,7 @@ function drawRedAt(point) {
   div.style.height = dotSize + "px";
   div.style.position = "absolute";
   div.style.left = point.X - dotSize / 2 + "px";
-  div.style.top = point.Y - dotSize / 2 + "px";
+  div.style.top = 600 - point.Y - dotSize / 2 + "px";
   div.style.borderRadius = "50%";
   document.getElementById("canvas").appendChild(div);
 }
@@ -32,7 +32,7 @@ document.getElementById("canvas").onclick = function (e) {
   }
   var rect = e.target.getBoundingClientRect();
   var x = e.clientX - rect.left;
-  var y = e.clientY - rect.top;
+  var y = 600 - (e.clientY - rect.top);
   var point = { x: Math.round(x), y: Math.round(y) };
   coords.push(point);
   drawAt(point);
@@ -47,6 +47,10 @@ document.getElementById("clear").onclick = function (_) {
 };
 
 document.getElementById("submit").onclick = function (_) {
+  document.getElementById("canvas").innerHTML = "";
+  coords.forEach((x) => {
+    drawAt(x);
+  });
   var degree = document.getElementById("degree").value;
   var rate = document.getElementById("rate").value;
   var itrs = document.getElementById("itrs").value;
@@ -66,6 +70,8 @@ document.getElementById("submit").onclick = function (_) {
       });
     }
   ).fail(function () {
-    alert("error");
+    document.getElementById("error").innerText = "";
+    document.getElementById("formula").innerText = "";
+    alert("Error");
   });
 };

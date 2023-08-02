@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -62,10 +63,10 @@ func createDataFile(points []models.Point, degree int) (*string, error) {
 }
 
 func generateData(results models.TrainingResults, degree int) []models.Point {
-	points := make([]models.Point, 100)
+	points := make([]models.Point, 20)
 	x := 0.0
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 20; i++ {
 		y := 0.0
 		for i := 0; i < degree+1; i++ {
 			if i == 0 {
@@ -77,10 +78,86 @@ func generateData(results models.TrainingResults, degree int) []models.Point {
 			}
 		}
 		points[i] = models.Point{X: x * 100, Y: y * 100}
-		x += 0.06
+		x += 0.3
 	}
 
 	return points
+}
+
+func generateArrowPoints(inputPoints []models.Point) []models.Point {
+	points := make([]models.Point, 3*(len(inputPoints)-1))
+	d := 15.0
+	a := 15.0
+	j := 0
+	for i := 1; i < len(inputPoints); i++ {
+		x2 := inputPoints[i].X
+		y2 := inputPoints[i].Y
+		x1 := inputPoints[i-1].X
+		y1 := inputPoints[i-1].Y
+		m := (y2 - y1) / (x2 - x1)
+		points[j] = models.Point{X: d*math.Cos(m+a) + x2, Y: d*math.Sin(m+a) + y2}
+		points[j+1] = models.Point{X: x2, Y: y2}
+		points[j+2] = models.Point{X: d*math.Cos(m-a) + x2, Y: d*math.Sin(m-a) + y2}
+		j += 3
+	}
+	return points
+}
+
+func generateGCode(points []models.Point) []string {
+	commands := make([]string, 7*(len(points)/3)+14)
+	commands[0] = "G90 G94"
+	commands[1] = "G17"
+	commands[2] = "G21"
+	commands[3] = "G28 G91 Z0"
+	commands[4] = "G90"
+	commands[5] = "S5000 M3"
+
+	idx := 6
+	for i := 0; i < len(points); i++ {
+		if i%3 == 0 {
+			commands[idx] = "G0 F400"
+			idx++
+			commands[idx] = "Z1"
+			idx++
+			commands[idx] = fmt.Sprintf("X%.2f Y%.2f", points[i].X/10, points[i].Y/10)
+			idx++
+			commands[idx] = "Z-0.2"
+			idx++
+			commands[idx] = "G1 F100"
+			idx++
+		} else {
+			commands[idx] = fmt.Sprintf("X%.2f Y%.2f", points[i].X/10, points[i].Y/10)
+			idx++
+		}
+	}
+
+	commands[idx] = "G0 F400"
+	commands[idx+1] = "Z2"
+	commands[idx+2] = "G28 G91 Z0"
+	commands[idx+3] = "G90"
+	commands[idx+4] = "G28 G91 X0 Y0"
+	commands[idx+5] = "G90"
+	commands[idx+6] = "M5"
+	commands[idx+7] = "M30"
+
+	return commands
+}
+
+func writeGCode(data []string) {
+	file, err := os.OpenFile(fmt.Sprintf("%v/gcode.nc", tempDir()), os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+
+	if err != nil {
+		log.Fatalf("failed creating file: %s", err)
+	}
+
+	datawriter := bufio.NewWriter(file)
+
+	for _, line := range data {
+		_, _ = datawriter.WriteString(line + "\n")
+	}
+
+	datawriter.Flush()
+	file.Close()
 }
 
 func submitHandler(w http.ResponseWriter, r *http.Request) {
@@ -146,10 +223,16 @@ func submitHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	arrowData := generateArrowPoints(data)
+
+	gcode := generateGCode(arrowData)
+	writeGCode(gcode)
+
 	response := models.ResultResponse{
-		Points:        data,
+		Points:        arrowData,
 		TrainingError: results.TrainingError,
 		Formula:       formula,
+		GCode:         gcode,
 	}
 	jsonResp, err := json.Marshal(response)
 

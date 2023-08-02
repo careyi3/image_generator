@@ -35,4 +35,5 @@ type ResultResponse struct {
 	Points        []Point
 	TrainingError float64
 	Formula       string
+	GCode         []string
 }
