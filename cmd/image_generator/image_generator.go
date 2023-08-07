@@ -86,8 +86,8 @@ func generateData(results models.TrainingResults, degree int) []models.Point {
 
 func generateArrowPoints(inputPoints []models.Point) []models.Point {
 	points := make([]models.Point, 3*(len(inputPoints)-1))
-	d := 15.0
-	a := 15.0
+	d := 40.0
+	a := 2.5
 	j := 0
 	for i := 1; i < len(inputPoints); i++ {
 		x2 := inputPoints[i].X
@@ -95,9 +95,10 @@ func generateArrowPoints(inputPoints []models.Point) []models.Point {
 		x1 := inputPoints[i-1].X
 		y1 := inputPoints[i-1].Y
 		m := (y2 - y1) / (x2 - x1)
-		points[j] = models.Point{X: d*math.Cos(m+a) + x2, Y: d*math.Sin(m+a) + y2}
+		t := math.Atan(m)
+		points[j] = models.Point{X: d*math.Cos(t+a) + x2, Y: d*math.Sin(t+a) + y2}
 		points[j+1] = models.Point{X: x2, Y: y2}
-		points[j+2] = models.Point{X: d*math.Cos(m-a) + x2, Y: d*math.Sin(m-a) + y2}
+		points[j+2] = models.Point{X: d*math.Cos(t-a) + x2, Y: d*math.Sin(t-a) + y2}
 		j += 3
 	}
 	return points
@@ -121,7 +122,7 @@ func generateGCode(points []models.Point) []string {
 			idx++
 			commands[idx] = fmt.Sprintf("X%.2f Y%.2f", points[i].X/10, points[i].Y/10)
 			idx++
-			commands[idx] = "Z-0.2"
+			commands[idx] = "Z-0.4"
 			idx++
 			commands[idx] = "G1 F100"
 			idx++
@@ -229,7 +230,7 @@ func submitHandler(w http.ResponseWriter, r *http.Request) {
 	writeGCode(gcode)
 
 	response := models.ResultResponse{
-		Points:        arrowData,
+		Points:        data,
 		TrainingError: results.TrainingError,
 		Formula:       formula,
 		GCode:         gcode,
